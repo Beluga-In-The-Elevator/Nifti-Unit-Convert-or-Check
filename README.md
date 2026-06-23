@@ -1,93 +1,50 @@
-# Nifti-Unit-Convert-or-Check
-Verify or convert image properties for imageJ/FIJI nifti files that have been imported using the bioformats importer
+This macro automates opening, inspecting, manually calibrating, and saving NIfTI images in ImageJ/Fiji using the Bio-Formats importer and the NIfTI-1 plugin.
 
-README – Voxel Size Check & Unit Sanity Macro (ImageJ/Fiji)
-What this macro does
-For the currently open image, this macro:
+What it does
+Prompts the user to select a single NIfTI file (.nii or .nii.gz) via a file open dialog.
 
-Reads the “Voxel size:” line from the Image Info (same as pressing Ctrl+I).
+Opens the selected file with Bio-Formats Importer as a hyperstack (view=Hyperstack, stack_order=XYCZT).
 
-Parses the X, Y, and Z voxel sizes and their units (e.g., micron^3).
+Reads the Image Info, parses the “Voxel size” line, and prints the X, Y, and Z voxel sizes and units to the Log window.
 
-Prints those values to the Log window so you can see the numeric voxel sizes clearly.
+Plots a Z-axis profile for a quick sanity check of slice spacing.
 
-Plots a Z‑axis profile to help you visually sanity‑check slice thickness vs. physical depth.
+Shows a dialog asking whether the units look correct; if not, it prints step-by-step instructions for manually editing units and voxel sizes via Image ▸ Properties (Ctrl+Shift+P).
 
-Shows a Yes/No dialog asking if the units now look correct based on:
+Pauses with waitForUser(...) so the user can make manual calibration edits.
 
-The Log output, and
+Asks one final “Are the units correct?” question and then saves a new NIfTI file using the NIfTI-1 plugin, with a clean filename based on the original file’s path.
 
-The Ctrl+I Info panel and Z‑axis profile.
+File naming and paths
+The macro remembers the full input file path in a variable called currentPath.
 
-If you answer:
+The parent directory is extracted using:
 
-Yes: the macro stops and tells you this step is complete.
+javascript
+parentDir = File.getDirectory(currentPath);
+The base name (without .nii.gz and .nii) is extracted using:
 
-No: it displays a guidance dialog reminding you to:
+javascript
+baseName = File.getNameWithoutExtension(currentPath); // strips .gz
+if (endsWith(baseName, ".nii"))
+    baseName = substring(baseName, 0, lengthOf(baseName) - 4); // strips .nii
+The output filename is constructed as:
 
-Press Ctrl+Shift+P;  Use the Log values to convert X, Y, Z units (e.g., microns → mm).; Manually update the voxel sizes and units in Image ▸ Properties….
+javascript
+newName  = "unitConverted_" + baseName + ".nii";
+savePath = parentDir + newName;
+so if the original file is X:/.../2a_38740/38740_grp1.nii.gz, the output will be X:/.../2a_38740/unitConverted_38740_grp1.nii.
 
-The macro does not automatically change units or voxel sizes; it is a helper to expose the metadata and guide you through manual correction when needed.
+NIfTI-1 plugin call (important)
+To ensure the NIfTI-1 plugin uses the intended filename instead of the current window title (which may include Bio-Formats suffixes like -0-0), the macro calls:
 
+javascript
+run("NIfTI-1", "save=[" + savePath + "]");
+The save=[path] argument is required; if you only pass the bare path string, the plugin will fall back to using the window title for the output name.
 
+Usage notes
+The macro assumes Bio-Formats and the NIfTI-1 plugin (nifti_io.jar) are installed and available in Fiji/ImageJ.
 
+It is designed for interactive use: you select a file, inspect the voxel sizes, and manually correct units and spacing before saving the calibrated NIfTI.
 
-How to run it
-Open the NIfTI image you want to check (e.g., map_T1_VAFI.nii or T1w-stack.nii.gz).
-
-Make sure that:
-
-Ctrl+I (Image Info) shows a line titled Voxel size (e.g. Voxel size: 0.2148x0.2273x0.1719 micron^3.) 
-
-Run the macro:
-
-Plugins ▸ Macros ▸ Run… or from the Script Editor.
-
-Watch the Log window:
-
-It will print:
-
-The file name.
-
-Voxel size X, Voxel size Y, Voxel size Z, and the unit.
-
-The macro will:
-
-Plot a Z‑axis profile to help you confirm slice depth vs. physical units.
-
-Show a Yes/No dialog:
-
-“Look at your Z axis profile and the new Ctrl I output. Are the units correct?”
-
-Respond to the dialog:
-
-If you select Yes:
-
-The macro prints a confirmation message and stops.
-
-If you select No:
-
-A “Convert to mm” dialog appears with instructions:
-
-Press Ctrl+Shift+P (Macro Recorder).
-
-Reference the Log output.
-
-Convert X, Y, Z units to the correct units (e.g., mm).
-
-Manually enter the corrected voxel sizes and unit in Image ▸ Properties….
-
-When to use this macro
-Use it when you:
-
-Suspect that voxel sizes are in the wrong units (e.g., microns vs. millimeters).
-
-Need to verify slice thickness and voxel spacing before registration and overlay.
-
-Want a structured prompt that reminds you:
-
-Where to look (Log, Info, Z‑profile).
-
-What to correct (X/Y/Z voxel sizes, unit in Image ▸ Properties…).
-
-It’s meant as a sanity‑check and manual calibration helper, not as a fully automated calibration tool.
+The window title inside ImageJ may still show suffixes like -0-0 when opening files via Bio-Formats; this does not affect the actual filename written to disk.
